@@ -1,0 +1,120 @@
+# ============================================================
+# Video Translation Pipeline Configuration
+# ============================================================
+
+# --- General ---
+source_language: "auto"      # auto = auto-detect
+target_language: "zh"
+temp_dir: "./temp"
+output_dir: "./output"
+
+# --- Video Download ---
+download:
+  proxy: ""                  # e.g. http://127.0.0.1:7890
+  cookies_file: ""           # path to cookies.txt for YouTube/Bilibili
+  format: "bestvideo+bestaudio/best"
+  # Bilibili credentials (needed for subtitle API, get from browser cookies)
+  bilibili:
+    sessdata: ""
+    bili_jct: ""
+    buvid3: ""
+
+# --- Transcription (Speech-to-Text) ---
+transcription:
+  # Model: tiny, base, small, medium, large-v3, distil-large-v3
+  model: "small"
+  device: "auto"             # auto, cpu, cuda
+  compute_type: "float16"    # float16, int8, int8_float16
+  beam_size: 5
+  vad_filter: true           # Voice Activity Detection to filter silence
+  word_timestamps: true
+
+# --- Translation ---
+translation:
+  # Backend: ollama, vllm, sglang, huggingface, openai_api, claude_api
+  backend: "ollama"
+
+  # -- Ollama --
+  ollama:
+    base_url: "http://localhost:11434"   # Docker: use "http://ollama:11434"
+    model: "qwen2.5:14b"
+
+  # -- vLLM --
+  vllm:
+    base_url: "http://localhost:8000/v1"
+    model: "Qwen/Qwen2.5-14B-Instruct"
+
+  # -- SGLang --
+  sglang:
+    base_url: "http://localhost:30000/v1"
+    model: "Qwen/Qwen2.5-14B-Instruct"
+
+  # -- HuggingFace (local pipeline) --
+  huggingface:
+    model: "Helsinki-NLP/opus-mt-en-zh"
+    device: "auto"
+
+  # -- OpenAI-compatible API --
+  openai_api:
+    base_url: "https://api.openai.com/v1"
+    api_key: ""              # or set env OPENAI_API_KEY
+    model: "gpt-4o"
+
+  # -- Claude API --
+  claude_api:
+    api_key: ""              # or set env ANTHROPIC_API_KEY
+    model: "claude-sonnet-4-20250514"
+
+  # Translation prompt template
+  # {src_lang}, {tgt_lang}, {text} are replaced at runtime
+  prompt: |
+    You are a professional translator. Translate the following {src_lang} text to {tgt_lang}.
+    Keep the meaning accurate and natural. Only output the translation, no explanations.
+
+    Text: {text}
+
+  # Batch size: how many segments to translate in one request
+  batch_size: 10
+  batch_prompt: |
+    You are a professional translator. Translate the following {src_lang} subtitles to {tgt_lang}.
+    Keep the meaning accurate and natural. Maintain the same number of lines.
+    Output ONLY the translations, one per line, matching the input order.
+
+    {text}
+
+# --- TTS (Text-to-Speech with Voice Cloning) ---
+tts:
+  # Backend: cosyvoice, edge_tts, fish_speech
+  backend: "edge_tts"
+
+  # -- CosyVoice2 (voice cloning) --
+  cosyvoice:
+    # API endpoint (run CosyVoice2 server separately)
+    base_url: "http://localhost:50000"
+    # Reference audio duration for cloning (seconds)
+    ref_audio_duration: 10
+
+  # -- Edge TTS (Microsoft, free, no cloning) --
+  edge_tts:
+    voice: "zh-CN-YunxiNeural"   # zh-CN-XiaoxiaoNeural, en-US-AriaNeural, etc.
+
+  # -- Fish Speech (voice cloning) --
+  fish_speech:
+    base_url: "http://localhost:8080"
+    ref_audio_duration: 10
+
+  # Speed adjustment to match original segment timing
+  speed_adjustment: true
+  min_speed: 0.8
+  max_speed: 1.5
+
+# --- Output ---
+output:
+  # Keep original audio as background (reduced volume)
+  keep_original_audio: false
+  original_audio_volume: 0.0    # 0.0 = mute, 1.0 = full
+  # Output format
+  format: "mp4"
+  # Generate subtitle file
+  generate_subtitles: true
+  subtitle_format: "srt"        # srt, ass, vtt

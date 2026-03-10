@@ -1,0 +1,60 @@
+version: "3.8"
+
+services:
+  # ── Main translation app ──
+  translate:
+    build: .
+    volumes:
+      - ./config.yaml:/app/config.yaml
+      - ./input:/app/input        # Put your videos here
+      - ./output:/app/output
+      - ./temp:/app/temp
+    # Uncomment below for GPU acceleration (requires NVIDIA Container Toolkit)
+    # 取消注释以启用 GPU 加速（需要 NVIDIA Container Toolkit）
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]
+    #
+    # Example: translate a local file
+    # docker compose run translate translate /app/input/video.mp4 -t zh
+    #
+    # Example: translate a YouTube URL
+    # docker compose run translate translate "https://youtube.com/watch?v=xxx" -t zh
+
+  # ── Ollama (local LLM for translation) ──
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    # Uncomment below for GPU acceleration (requires NVIDIA Container Toolkit)
+    # 取消注释以启用 GPU 加速（需要 NVIDIA Container Toolkit）
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]
+
+  # ── CosyVoice2 (voice cloning TTS) ──
+  # Uncomment to enable voice cloning
+  # cosyvoice:
+  #   image: registry.cn-shanghai.aliyuncs.com/funaudiollm/cosyvoice2:latest
+  #   ports:
+  #     - "50000:50000"
+  #   deploy:
+  #     resources:
+  #       reservations:
+  #         devices:
+  #           - driver: nvidia
+  #             count: 1
+  #             capabilities: [gpu]
+
+volumes:
+  ollama_data:
