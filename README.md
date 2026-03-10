@@ -6,6 +6,16 @@ Translate videos from YouTube, Bilibili, or local files. The pipeline automatica
 
 一键翻译任何视频到另一种语言 — 支持声音克隆、说话人性别匹配、字幕优先优化。支持 YouTube、Bilibili 和本地视频文件。
 
+## Status / 项目状态
+
+The author has successfully tested Chinese ↔ English translation on both YouTube and Bilibili videos. Other language pairs are supported but have not been thoroughly tested — your mileage may vary.
+
+作者已成功跑通 YouTube 和 Bilibili 的中英互译。其他语言对理论支持但未经充分测试，效果可能有所不同。
+
+This project was developed with the assistance of LLM-based coding tools. Bugs are expected — PRs are welcome!
+
+本项目的开发过程中使用了 LLM Coding 辅助。如发现 bug，欢迎提交 PR 修复！
+
 ---
 
 ## How It Works / 工作原理
@@ -381,18 +391,6 @@ download:
 **Translation model not found / 翻译模型找不到**
 - HuggingFace backend auto-selects `Helsinki-NLP/opus-mt-{src}-{tgt}`. Not all language pairs have models. For unsupported pairs, use `ollama` or `openai_api` instead.
 - HuggingFace 后端自动选择翻译模型，但不是所有语言对都有模型。不支持的语言对请用 `ollama` 或 `openai_api`。
-
----
-
-## Status / 项目状态
-
-The author has successfully tested Chinese ↔ English translation on both YouTube and Bilibili videos. Other language pairs are supported but have not been thoroughly tested — your mileage may vary.
-
-作者已成功跑通 YouTube 和 Bilibili 的中英互译。其他语言对理论支持但未经充分测试，效果可能有所不同。
-
-This project was developed with the assistance of LLM-based coding tools. Bugs are expected — PRs are welcome!
-
-本项目的开发过程中使用了 LLM Coding 辅助。如发现 bug，欢迎提交 PR 修复！
 
 ---
 
