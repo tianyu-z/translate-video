@@ -384,6 +384,18 @@ download:
 
 ---
 
+## Status / 项目状态
+
+The author has successfully tested Chinese ↔ English translation on both YouTube and Bilibili videos. Other language pairs are supported but have not been thoroughly tested — your mileage may vary.
+
+作者已成功跑通 YouTube 和 Bilibili 的中英互译。其他语言对理论支持但未经充分测试，效果可能有所不同。
+
+This project was developed with the assistance of LLM-based coding tools. Bugs are expected — PRs are welcome!
+
+本项目的开发过程中使用了 LLM Coding 辅助。如发现 bug，欢迎提交 PR 修复！
+
+---
+
 ## License
 
 MIT
