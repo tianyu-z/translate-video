@@ -65,6 +65,11 @@ translation:
     api_key: ""              # or set env ANTHROPIC_API_KEY
     model: "claude-sonnet-4-20250514"
 
+  # -- Codex (ChatGPT OAuth, no API key needed) --
+  # Run `codex login` once to authorize, then use -b codex
+  codex:
+    model: "gpt-5.4"
+
   # Translation prompt template
   # {src_lang}, {tgt_lang}, {text} are replaced at runtime
   prompt: |

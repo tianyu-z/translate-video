@@ -172,12 +172,17 @@ python main.py list-backends
 
 | Backend | Description / 说明 | Requirements / 依赖 |
 |---------|-----------|--------------|
+| `codex` | GPT-5.4 via ChatGPT login / 通过 ChatGPT 登录使用 GPT-5.4 | `codex login` (no API key!) |
 | `ollama` | Local LLM via Ollama / 本地 Ollama 大模型 | Ollama server running |
 | `vllm` | Local LLM via vLLM / 本地 vLLM 大模型 | vLLM server running |
 | `sglang` | Local LLM via SGLang / 本地 SGLang 大模型 | SGLang server running |
 | `huggingface` | Helsinki-NLP opus-mt models / 离线翻译模型 | Auto-downloads model |
 | `openai_api` | OpenAI GPT-4o etc. | `OPENAI_API_KEY` |
 | `claude_api` | Anthropic Claude | `ANTHROPIC_API_KEY` |
+
+**Codex backend (recommended if you have ChatGPT Plus/Pro)** — uses GPT-5.4 via your ChatGPT subscription, no API key needed. Just run `codex login` once to authorize, then use `-b codex`.
+
+Codex 后端（推荐给 ChatGPT Plus/Pro 订阅用户）— 通过 ChatGPT 登录使用 GPT-5.4，无需 API key。只需运行一次 `codex login` 授权即可。
 
 **HuggingFace backend** automatically selects the right model based on language pair (e.g., `Helsinki-NLP/opus-mt-zh-en` for Chinese→English). No API key needed — runs fully offline.
 
@@ -297,6 +302,16 @@ Pipeline will: download video → grab YouTube subtitles (skip Whisper) → tran
 
 ```bash
 python main.py translate "https://www.bilibili.com/video/BVxxxxxxx" -t en -s zh -b huggingface
+```
+
+### Use GPT-5.4 with ChatGPT subscription (no API key) / 用ChatGPT订阅使用GPT-5.4（无需API key）
+
+```bash
+# Login once (opens browser) / 登录一次（打开浏览器授权）
+codex login
+
+# Then translate with GPT-5.4 / 然后用GPT-5.4翻译
+python main.py translate video.mp4 -t zh -b codex
 ```
 
 ### Use Ollama for higher quality translation / 用Ollama获得更高质量翻译

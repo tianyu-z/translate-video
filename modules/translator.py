@@ -1,10 +1,12 @@
 """Multi-backend translation module.
 
-Supports: Ollama, vLLM, SGLang, HuggingFace, OpenAI API, Claude API.
+Supports: Ollama, vLLM, SGLang, HuggingFace, OpenAI API, Claude API, Codex (ChatGPT OAuth).
 """
 
+import json
 import os
 from abc import ABC, abstractmethod
+from pathlib import Path
 
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn
@@ -113,6 +115,147 @@ class ClaudeTranslator(TranslatorBackend):
         return _parse_batch_response(response.content[0].text, len(texts))
 
 
+class CodexTranslator(TranslatorBackend):
+    """Translation via Codex ChatGPT OAuth login — no API key needed.
+
+    Uses the ChatGPT login-based Codex endpoint (streaming SSE).
+    Reads the cached OAuth token from ~/.codex/auth.json (created by `codex login`).
+    If Codex endpoint fails, falls back to standard OpenAI API using OPENAI_API_KEY
+    (a separate credential from the ChatGPT OAuth token).
+    """
+
+    def _get_codex_token(self) -> str | None:
+        """Read access token from Codex auth cache (~/.codex/auth.json)."""
+        auth_paths = [
+            Path.home() / ".codex" / "auth.json",
+            Path(os.environ.get("CODEX_HOME", "")) / "auth.json",
+        ]
+        for p in auth_paths:
+            if p.is_file():
+                try:
+                    data = json.loads(p.read_text())
+                    # Token is nested under "tokens" key in current Codex CLI
+                    tokens = data.get("tokens", {})
+                    token = (
+                        tokens.get("access_token")
+                        or tokens.get("id_token")
+                        # Also check top-level for future format changes
+                        or data.get("access_token")
+                        or data.get("accessToken")
+                    )
+                    if token:
+                        console.print(f"[green]Using Codex OAuth token from {p}[/green]")
+                        return token
+                except (json.JSONDecodeError, OSError):
+                    continue
+        return None
+
+    def _call_codex_streaming(self, prompt: str, model: str, token: str) -> str:
+        """Call Codex backend-api with streaming SSE (required by the endpoint)."""
+        import requests as req
+
+        headers = {
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json",
+        }
+        payload = {
+            "model": model,
+            "instructions": (
+                "You are a professional translator. "
+                "Translate the given text accurately and naturally. "
+                "Only output the translation, no explanations."
+            ),
+            "input": [{"role": "user", "content": prompt}],
+            "store": False,
+            "stream": True,
+        }
+
+        resp = req.post(
+            "https://chatgpt.com/backend-api/codex/responses",
+            json=payload,
+            headers=headers,
+            timeout=120,
+            stream=True,
+        )
+        resp.raise_for_status()
+
+        # Parse SSE stream
+        full_text = ""
+        for raw_line in resp.iter_lines():
+            line = raw_line.decode("utf-8") if isinstance(raw_line, bytes) else raw_line
+            if not line or not line.startswith("data: "):
+                continue
+            data_str = line[6:]
+            if data_str == "[DONE]":
+                break
+            try:
+                event = json.loads(data_str)
+                if event.get("type") == "response.output_text.delta":
+                    full_text += event.get("delta", "")
+            except json.JSONDecodeError:
+                continue
+
+        if not full_text:
+            raise RuntimeError("Codex streaming returned empty response")
+        return full_text
+
+    def _call_openai_api(self, prompt: str, model: str, api_key: str) -> str:
+        """Fallback: call standard OpenAI API with a real API key."""
+        import requests as req
+
+        resp = req.post(
+            "https://api.openai.com/v1/chat/completions",
+            json={
+                "model": model,
+                "messages": [{"role": "user", "content": prompt}],
+                "temperature": 0.3,
+            },
+            headers={
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json",
+            },
+            timeout=120,
+        )
+        resp.raise_for_status()
+        return resp.json()["choices"][0]["message"]["content"]
+
+    def translate_batch(self, texts: list[str], src_lang: str, tgt_lang: str, config: dict) -> list[str]:
+        cc = config["translation"].get("codex", {})
+        model = cc.get("model", "gpt-5.4")
+
+        prompt_tpl = config["translation"]["batch_prompt"]
+        numbered_text = "\n".join(f"{i+1}. {t}" for i, t in enumerate(texts))
+        prompt = prompt_tpl.format(
+            src_lang=get_lang_name(src_lang),
+            tgt_lang=get_lang_name(tgt_lang),
+            text=numbered_text,
+        )
+
+        # Try 1: Codex backend-api with ChatGPT OAuth token
+        codex_token = self._get_codex_token()
+        if codex_token:
+            try:
+                content = self._call_codex_streaming(prompt, model, codex_token)
+                return _parse_batch_response(content, len(texts))
+            except Exception as e:
+                console.print(f"[yellow]Codex endpoint failed ({e})[/yellow]")
+
+        # Try 2: Standard OpenAI API with real API key (separate credential)
+        api_key = (
+            config["translation"].get("openai_api", {}).get("api_key", "")
+            or os.environ.get("OPENAI_API_KEY", "")
+        )
+        if api_key:
+            console.print("[yellow]Falling back to standard OpenAI API with API key...[/yellow]")
+            content = self._call_openai_api(prompt, model, api_key)
+            return _parse_batch_response(content, len(texts))
+
+        raise RuntimeError(
+            "Codex translation failed. Either run `codex login` first, "
+            "or set OPENAI_API_KEY as fallback."
+        )
+
+
 class HuggingFaceTranslator(TranslatorBackend):
     """HuggingFace Seq2Seq translation.
 
@@ -208,6 +351,7 @@ def get_translator(backend: str) -> TranslatorBackend:
         "sglang": lambda: OpenAICompatibleTranslator("sglang"),
         "openai_api": lambda: OpenAICompatibleTranslator("openai_api"),
         "claude_api": ClaudeTranslator,
+        "codex": CodexTranslator,
         "huggingface": HuggingFaceTranslator,
     }
     factory = backends.get(backend)

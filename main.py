@@ -31,13 +31,32 @@ def cli():
 @click.option("--target-lang", "-t", default=None, help="Target language code (e.g., zh, en, ja)")
 @click.option("--output", "-o", default=None, help="Output file path")
 @click.option("--backend", "-b", default=None,
-              help="Translation backend (ollama/vllm/sglang/huggingface/openai_api/claude_api)")
+              help="Translation backend (ollama/vllm/sglang/huggingface/openai_api/claude_api/codex)")
 @click.option("--tts", default=None, help="TTS backend (edge_tts/cosyvoice/fish_speech)")
 @click.option("--model", "-m", default=None, help="Override translation model name")
 @click.option("--max-segments", default=0, type=int, help="Limit segments to translate (0=all, for testing)")
-def translate(source, config, source_lang, target_lang, output, backend, tts, model, max_segments):
+@click.option("--codex-relogin", is_flag=True, default=False,
+              help="Force Codex re-login (delete cached token and re-authenticate)")
+def translate(source, config, source_lang, target_lang, output, backend, tts, model, max_segments, codex_relogin):
     """Translate a video file or URL."""
     import yaml
+
+    # Handle Codex re-login if requested
+    if codex_relogin:
+        import subprocess
+        from pathlib import Path
+
+        auth_file = Path.home() / ".codex" / "auth.json"
+        if auth_file.exists():
+            auth_file.unlink()
+            console.print("[yellow]Deleted cached Codex token[/yellow]")
+
+        console.print("[cyan]Launching Codex login...[/cyan]")
+        result = subprocess.run(["codex", "login"], check=False)
+        if result.returncode != 0:
+            console.print("[red]Codex login failed. Continuing anyway...[/red]")
+        else:
+            console.print("[green]Codex login successful![/green]")
 
     # Load and optionally override config
     with open(config, "r") as f:
@@ -103,6 +122,7 @@ def list_backends():
         ("huggingface", "HuggingFace Transformers (local)", "Model downloaded"),
         ("openai_api", "OpenAI API (GPT-4o etc.)", "OPENAI_API_KEY"),
         ("claude_api", "Anthropic Claude API", "ANTHROPIC_API_KEY"),
+        ("codex", "ChatGPT OAuth via Codex CLI (GPT-5.4)", "codex login (no API key needed)"),
     ]
     for name, desc, req in rows:
         table.add_row(name, desc, req)
